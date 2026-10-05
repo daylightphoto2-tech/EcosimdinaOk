@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EcoSim: Petualangan Rantai Makanan</title>
+<style>
+:root{
+  --bg:#f3f8ff;--panel:#fff;--ink:#203040;--muted:#627386;
+  --blue:#4c8dff;--green:#55b77a;--yellow:#ffc857;--pink:#ff7fa8;
+  --purple:#9b7cff;--shadow:0 10px 28px rgba(31,65,100,.12);
+}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(180deg,#eaf6ff,#f8fbff);color:var(--ink)}
+button,input,textarea{font:inherit} button{cursor:pointer;border:0}
+.app{max-width:1180px;margin:auto;padding:18px}.screen{display:none}.screen.active{display:block}
+.hero{background:linear-gradient(135deg,#dff6ff,#f5eaff);border-radius:28px;padding:28px;box-shadow:var(--shadow)}
+h1{font-size:clamp(30px,6vw,56px);margin:8px 0}.subtitle{font-size:19px;color:var(--muted)}
+.hero-art{display:flex;justify-content:center;gap:20px;font-size:64px;margin:12px 0 22px;flex-wrap:wrap}
+.card{background:var(--panel);border-radius:20px;padding:20px;box-shadow:var(--shadow);margin-top:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:180px}
+.btn{min-height:48px;padding:12px 18px;border-radius:14px;background:var(--blue);color:#fff;font-weight:700}
+.btn.secondary{background:#e9f1ff;color:#2759a6}.btn.green{background:var(--green)}.btn.pink{background:var(--pink)}.btn.gray{background:#e7edf3;color:#304354}
+.topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.progress{height:12px;background:#dce6ef;border-radius:20px;overflow:hidden}.progress>div{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));width:0}
+.badge{display:inline-block;padding:6px 10px;border-radius:99px;background:#eaf2ff;color:#315c9e;font-weight:700}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}@media(max-width:850px){.grid{grid-template-columns:1fr}}
+.eco{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;background:#eef9ef;border-radius:18px;padding:16px}
+.organism{width:150px;text-align:center;background:#fff;border-radius:16px;padding:12px;border:2px solid #e2eaf1}
+.organism .emoji{font-size:48px}.pop{font-size:26px;font-weight:800}.small{font-size:13px;color:var(--muted)}
+input[type=range]{width:100%}
+.sliderbox{margin:12px 0}.sliderbox label{display:flex;justify-content:space-between;font-weight:700}
+svg.chart{width:100%;height:250px;background:#fbfdff;border-radius:14px;border:1px solid #e3eaf1}
+.blocks{display:flex;gap:8px;flex-wrap:wrap;min-height:70px;padding:12px;background:#f6f2ff;border-radius:16px}
+.block{padding:10px 13px;border-radius:10px;color:#fff;font-weight:700;box-shadow:0 4px 8px #0001;user-select:none}
+.b1{background:#4c8dff}.b2{background:#55b77a}.b3{background:#ff9d4d}.b4{background:#9b7cff}
+.answer{width:100%;min-height:90px;padding:12px;border:2px solid #d9e3ec;border-radius:12px;resize:vertical}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:9px;border:1px solid #d8e2ea;text-align:left}th{background:#edf5ff}
+.note{background:#fff7d9;padding:12px 14px;border-radius:14px}.success{background:#e8f8ed}.warn{background:#fff0f3}
+.print-only{display:none}
+@media print{
+ body{background:#fff}.app{max-width:none;padding:0}.screen:not(#lkpd){display:none!important}
+ #lkpd{display:block!important}.no-print{display:none!important}.print-only{display:block}
+ .card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}.answer{border:1px solid #999;min-height:80px}
+}
+
+.eco-arena{position:relative;height:300px;overflow:hidden;border-radius:20px;
+ background:linear-gradient(#bfe9ff 0 42%,#8ed36d 42% 70%,#6fae52 70% 100%);
+ border:3px solid #d7ead5;box-shadow:inset 0 -30px 0 #5f9d4d;margin-top:12px}
+.eco-arena:before{content:"☁️     ☁️";position:absolute;top:15px;left:8%;font-size:30px;opacity:.65;letter-spacing:50px}
+.sun{position:absolute;right:25px;top:18px;font-size:44px}
+.actor{position:absolute;font-size:38px;line-height:1;transition:left 1.5s ease,top 1.2s ease,opacity .8s,transform .5s;filter:drop-shadow(0 3px 2px #0002)}
+.actor.moving{animation:bob .7s ease-in-out infinite alternate}
+.actor.eating{animation:eat .45s ease-in-out 3}
+@keyframes bob{to{transform:translateY(-7px) rotate(3deg)}}
+@keyframes eat{50%{transform:scale(1.2) rotate(-4deg)}}
+.sim-banner{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+ background:#ffffffea;padding:12px 18px;border-radius:16px;font-weight:800;opacity:0;pointer-events:none;transition:opacity .3s;z-index:20}
+.sim-banner.show{opacity:1}
+.audio-panel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.audio-panel button{min-height:44px;padding:9px 13px;border-radius:12px;background:#edf4ff;color:#315c9e;font-weight:700}
+.audio-panel input{width:120px}
+.sim-status{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sim-status .pill{padding:6px 10px;border-radius:99px;background:#fff;font-size:13px;font-weight:700}
+@media(max-width:600px){.eco-arena{height:260px}.actor{font-size:31px}}
+</style>
+</head>
+<body><audio id="ecoMusic" preload="auto" loop src="ecosim_music.wav"></audio>
+<audio id="ecoSfx" preload="auto" src="ecosim_sfx.wav"></audio>
+<div class="app">
+
+<section id="home" class="screen active">
+  <div class="hero">
+    <div class="hero-art"><span>🌾</span><span>🐭</span><span>🐸</span><span>🐍</span></div>
+    <span class="badge">IPA SD Kelas 5 • Kelompok • ±15 menit</span>
+    <h1>EcoSim: Petualangan Rantai Makanan</h1>
+    <p class="subtitle">Eksperimen sederhana untuk melihat bagaimana perubahan satu populasi dapat memengaruhi organisme lain.</p>
+    <div class="card">
+      <div class="row">
+        <label>Nama kelompok<input id="groupName" class="answer" style="min-height:48px" placeholder="Contoh: Kelompok 3"></label>
+        <label>Anggota<input id="members" class="answer" style="min-height:48px" placeholder="Nama anggota"></label>
+      </div>
+      <p><b>Cara bermain:</b> ubah populasi, jalankan EcoSim, susun balok sebab-akibat, amati data, lalu simpan hasil untuk LKPD.</p>
+      <button class="btn" onclick="startGame()">🚀 MULAI PETUALANGAN</button>
+    </div>
+  </div>
+</section>
+
+<section id="brief" class="screen">
+ <div class="card">
+  <span class="badge">Briefing</span><h2>Kenali ekosistem kita 🌿</h2>
+  <p>Dalam model EcoSim ini, padi menjadi sumber makanan. Tikus dan belalang memakan padi. Katak memakan belalang, sedangkan ular dapat memangsa tikus dan katak.</p>
+  <div class="eco">
+    <div class="organism"><div class="emoji">🌾</div><b>Padi</b><div class="small">Produsen</div></div>
+    <div class="organism"><div class="emoji">🐭</div><b>Tikus</b><div class="small">Konsumen</div></div>
+    <div class="organism"><div class="emoji">🦗</div><b>Belalang</b><div class="small">Konsumen</div></div>
+    <div class="organism"><div class="emoji">🐸</div><b>Katak</b><div class="small">Konsumen</div></div>
+    <div class="organism"><div class="emoji">🐍</div><b>Ular</b><div class="small">Konsumen</div></div>
+  </div>
+  <button class="btn green" onclick="openMission(0)">Mulai Misi 1 →</button>
+ </div>
+</section>
+
+<section id="mission" class="screen">
+ <div class="topbar">
+  <div><span id="missionBadge" class="badge"></span><h2 id="missionTitle"></h2></div>
+  <button class="btn gray no-print" onclick="resetMission()">↻ Reset Skenario</button>
+ </div>
+ <div class="progress"><div id="progressBar"></div></div>
+ <div class="grid">
+  <div>
+   <div class="card">
+    <h3>🔬 Eksperimen Populasi</h3><p id="missionDesc"></p>
+    <div id="sliders"></div>
+    <div class="audio-panel no-print">
+      <button id="musicBtn" onclick="toggleMusic()">🎵 Musik ON</button>
+      <button id="sfxBtn" onclick="toggleSfx()">🔔 Efek ON</button>
+      <label>🔊 <input id="volume" type="range" min="0" max="100" value="35" oninput="setVolume(this.value)"></label>
+    </div>
+    <div id="ecoArena" class="eco-arena" aria-label="Arena simulasi ekosistem">
+      <div class="sun">☀️</div><div id="simBanner" class="sim-banner">🔬 EcoSim sedang berjalan...</div>
+      <div id="actors"></div>
+    </div>
+    <div id="simStatus" class="sim-status"></div>
+    <div class="row no-print">
+      <button class="btn" onclick="runSim()">▶ Jalankan EcoSim</button>
+      <button class="btn secondary" onclick="saveExperiment()">💾 Simpan Hasil Eksperimen</button>
+    </div>
+    <div id="feedback" class="note" style="margin-top:12px">Atur populasi lalu jalankan simulasi.</div>
+   </div>
+   <div class="card">
+    <h3>📊 Sebelum → Sesudah</h3>
+    <div id="chartWrap"></div>
+   </div>
+  </div>
+  <div>
+   <div class="card">
+    <h3>🧱 Susun Logika EcoSim</h3>
+    <p>Pilih balok agar urutannya menjelaskan hasil eksperimen.</p>
+    <div id="blockBank" class="blocks no-print"></div>
+    <p><b>Urutanmu:</b></p><div id="chosenBlocks" class="blocks"></div>
+    <button class="btn purple no-print" style="background:var(--purple);margin-top:10px" onclick="checkBlocks()">Jalankan Blok</button>
+    <div id="blockFeedback" class="note" style="margin-top:10px"></div>
+   </div>
+   <div class="card">
+    <h3>📝 Pengamatan</h3>
+    <p>Catat apa yang kelompokmu lihat pada simulasi.</p>
+    <textarea id="observation" class="answer" placeholder="Contoh: Setelah jumlah ular dikurangi, jumlah tikus ..."></textarea>
+   </div>
+  </div>
+ </div>
+ <div class="card no-print">
+  <button class="btn green" onclick="completeMission()">Selesaikan Misi →</button>
+ </div>
+</section>
+
+<section id="lkpd" class="screen">
+ <div class="topbar no-print"><span class="badge">LKPD Terintegrasi</span><div><button class="btn secondary" onclick="window.print()">🖨️ Cetak / Simpan PDF</button></div></div>
+ <div class="card">
+  <h1>📘 LKPD — EcoSim: Petualangan Rantai Makanan</h1>
+  <p class="print-only"><b>Kelompok:</b> <span id="printGroup"></span> &nbsp; <b>Anggota:</b> <span id="printMembers"></span></p>
+  <div class="row no-print">
+   <label>Nama kelompok<input id="lkGroup" class="answer" style="min-height:48px"></label>
+   <label>Anggota<input id="lkMembers" class="answer" style="min-height:48px"></label>
+   <label>Kelas<input id="lkClass" class="answer" style="min-height:48px" placeholder="V"></label>
+   <label>Tanggal<input id="lkDate" class="answer" style="min-height:48px" type="date"></label>
+  </div>
+  <h3>Tujuan Pembelajaran</h3>
+  <p>Mengidentifikasi hubungan makan-dimakan, mengamati perubahan populasi, dan menjelaskan sebab-akibat sederhana dalam keseimbangan ekosistem.</p>
+ </div>
+ <div id="lkpdMissions"></div>
+ <div class="card">
+  <h2>Perbandingan Tiga Misi</h2><div id="compareTable"></div>
+ </div>
+ <div class="card">
+  <h2>Kesimpulan</h2>
+  <p>Bagaimana perubahan jumlah satu organisme dapat memengaruhi organisme lain dalam rantai makanan?</p>
+  <textarea id="conclusion" class="answer" placeholder="Setelah melakukan tiga eksperimen EcoSim, kami menyimpulkan bahwa ..."></textarea>
+  <div class="no-print" style="margin-top:12px"><button class="btn green" onclick="saveLKPD()">💾 Simpan Jawaban</button> <span id="saveStatus"></span></div>
+ </div>
+ <div class="card no-print">
+   <button class="btn pink" onclick="location.reload()">↻ Main Lagi</button>
+ </div>
+</section>
+
+</div>
+
+<script>
+
+// ===== AUDIO & VISUAL SIMULATION UPGRADE =====
+let audioCtx=null, masterGain=null, musicGain=null, sfxGain=null, musicTimer=null;
+let musicOn=true, sfxOn=true, volumeLevel=.35;
+
+function ensureAudio(){
+  if(!audioCtx){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    masterGain=audioCtx.createGain();
+    musicGain=audioCtx.createGain();
+    sfxGain=audioCtx.createGain();
+    musicGain.gain.value=.32;
+    sfxGain.gain.value=1;
+    masterGain.gain.value=volumeLevel;
+    musicGain.connect(masterGain);
+    sfxGain.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+  }
+  if(audioCtx.state==="suspended") audioCtx.resume();
+}
+
+function playTone(freq,dur=.12,type="sine",gain=.04,channel="sfx",delay=0){
+  ensureAudio();
+  const dest=channel==="music"?musicGain:sfxGain;
+  if(channel==="sfx" && !sfxOn) return;
+  if(channel==="music" && !musicOn) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,audioCtx.currentTime+delay);
+  const t=audioCtx.currentTime+delay;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(Math.max(.0002,gain),t+.025);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g); g.connect(dest);
+  o.start(t); o.stop(t+dur+.04);
+}
+
+function startMusic(){
+  ensureAudio();
+  if(!musicOn || musicTimer) return;
+  const notes=[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23];
+  let i=0;
+  // Immediate audible cue after user interaction.
+  playTone(notes[0],.30,"triangle",.018,"music");
+  musicTimer=setInterval(()=>{
+    if(musicOn) playTone(notes[i++%notes.length],.30,"triangle",.018,"music");
+  },700);
+}
+
+function stopMusic(){
+  if(musicTimer){clearInterval(musicTimer);musicTimer=null;}
+}
+
+function toggleMusic(){
+  ensureAudio();
+  musicOn=!musicOn;
+  document.getElementById("musicBtn").textContent=musicOn?"🎵 Musik ON":"🎵 Musik OFF";
+  if(musicOn) startMusic(); else stopMusic();
+}
+
+function toggleSfx(){
+  ensureAudio();
+  sfxOn=!sfxOn;
+  document.getElementById("sfxBtn").textContent=sfxOn?"🔔 Efek ON":"🔕 Efek OFF";
+  if(sfxOn) playTone(660,.12,"sine",.035,"sfx");
+}
+
+function setVolume(v){
+  volumeLevel=+v/100;
+  if(masterGain) masterGain.gain.value=volumeLevel;
+}
+
+const actorPos={
+ padi:[8,67],tikus:[22,65],belalang:[42,61],katak:[60,66],ular:[76,69]
+};
+
+function makeActors(values){
+ const wrap=document.getElementById("actors"); if(!wrap)return; wrap.innerHTML="";
+ Object.keys(organisms).forEach((k,i)=>{
+   const n=Math.max(0,Math.min(10,Math.round(values[k]/8)));
+   for(let j=0;j<n;j++){
+     const el=document.createElement("div");el.className="actor";el.dataset.kind=k;
+     el.textContent=organisms[k].emoji;
+     const base=actorPos[k], jitter=(j*7)%18-9;
+     el.style.left=(base[0]+jitter)+"%";el.style.top=(base[1]+((j*13)%16-8))+"%";
+     wrap.appendChild(el);
+   }
+ });
+}
+
+function updateActors(values,phase="idle"){
+ makeActors(values);
+ document.querySelectorAll(".actor").forEach((el,i)=>{
+   el.classList.toggle("moving",phase==="moving");
+   if(phase==="moving"){
+     setTimeout(()=>{
+       el.style.left=(Math.max(2,Math.min(92,parseFloat(el.style.left)+(i%2?4:-3))))+"%";
+     },50+i*20);
+   }
+ });
+}
+
+function showBanner(msg,ms=900){
+ const b=document.getElementById("simBanner"); if(!b)return;
+ b.textContent=msg;b.classList.add("show");
+ setTimeout(()=>b.classList.remove("show"),ms);
+}
+
+function renderSimStatus(b,a){
+ const wrap=document.getElementById("simStatus");if(!wrap)return;
+ wrap.innerHTML=Object.keys(organisms).map(k=>{
+   const d=a[k]-b[k];
+   return `<span class="pill">${organisms[k].emoji} ${organisms[k].name}: ${b[k]} → ${a[k]} ${d>0?"📈":d<0?"📉":"↔️"}</span>`
+ }).join("");
+}
+
+function animateSimulation(b,a,missionIndex){
+ ensureAudio();
+ startMusic();
+ playTone(220,.16,"sine",.035,"sfx");
+ updateActors(b,"moving");
+ showBanner("🔬 EcoSim sedang berjalan...",900);
+
+ setTimeout(()=>{
+   playTone(330,.16,"sine",.035,"sfx");
+   showBanner("👀 Amati perubahan organisme...",900);
+ },1000);
+
+ setTimeout(()=>{
+   updateActors(a,"moving");
+   renderSimStatus(b,a);
+   if(missionIndex===0){
+     showBanner("🐍 Ular berkurang → 🐭 Tikus berubah → 🌾 Padi ikut berubah",1600);
+   }else if(missionIndex===1){
+     showBanner("🐸 Katak berkurang → 🦗 Belalang berubah → 🌾 Padi ikut berubah",1600);
+   }else{
+     showBanner("🌾 Padi berkurang → konsumen ikut berubah",1600);
+   }
+   playTone(440,.18,"triangle",.04,"sfx");
+ },2200);
+
+ setTimeout(()=>{
+   document.querySelectorAll(".actor").forEach(el=>el.classList.remove("moving"));
+ },3900);
+}
+
+function missionSuccessSound(){
+ ensureAudio();
+ playTone(523,.16,"triangle",.04,"sfx");
+ playTone(659,.16,"triangle",.04,"sfx",.12);
+ playTone(784,.28,"triangle",.045,"sfx",.24);
+}
+// ===== END UPGRADE =====
+
+const organisms = {
+ padi:{name:"Padi",emoji:"🌾"}, tikus:{name:"Tikus",emoji:"🐭"}, belalang:{name:"Belalang",emoji:"🦗"}, katak:{name:"Katak",emoji:"🐸"}, ular:{name:"Ular",emoji:"🐍"}
+};
+const scenarios = [
+ {title:"Misi 1 — Ketika Ular Menghilang",desc:"Kurangi populasi ular sampai sangat rendah. Jalankan simulasi dan amati apa yang terjadi pada tikus, katak, dan padi.",target:"ular",initial:{padi:60,tikus:20,belalang:20,katak:12,ular:10},defaultChange:{ular:0},
+  blocks:["ular ↓","tikus ↑","padi ↓","katak ↑"],correct:["ular ↓","tikus ↑","padi ↓"]},
+ {title:"Misi 2 — Ketika Katak Berkurang",desc:"Kurangi populasi katak. Amati hubungan katak, belalang, dan padi.",target:"katak",initial:{padi:60,tikus:20,belalang:20,katak:12,ular:10},defaultChange:{katak:3},
+  blocks:["katak ↓","belalang ↑","padi ↓","ular ↑"],correct:["katak ↓","belalang ↑","padi ↓"]},
+ {title:"Misi 3 — Ketika Padi Berkurang",desc:"Kurangi populasi padi. Amati bagaimana berkurangnya produsen memengaruhi konsumen.",target:"padi",initial:{padi:60,tikus:20,belalang:20,katak:12,ular:10},defaultChange:{padi:30},
+  blocks:["padi ↓","tikus ↓","belalang ↓","konsumen lain ↓"],correct:["padi ↓","tikus ↓","belalang ↓","konsumen lain ↓"]}
+];
+let state={group:"",members:"",mission:0,missions:scenarios.map(()=>({before:null,after:null,observation:"",blocks:[]})),currentBefore:null,currentAfter:null,chosen:[],ran:false,blocksOk:false};
+
+function show(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active")}
+function startGame(){
+ ensureAudio();
+ startMusic();
+ playTone(520,.12,"sine",.045,"sfx");
+ state.group=document.getElementById("groupName").value||"Kelompok";
+ state.members=document.getElementById("members").value||"";
+ show("brief");
+}
+function openMission(i){
+ state.mission=i;state.currentBefore=null;state.currentAfter=null;state.chosen=[];state.ran=false;state.blocksOk=false;
+ const s=scenarios[i]; state.missions[i]={before:null,after:null,observation:"",blocks:[]};
+ document.getElementById("missionBadge").textContent=`Misi ${i+1} dari 3`;
+ document.getElementById("progressBar").style.width=`${(i/3)*100}%`;
+ document.getElementById("missionTitle").textContent=s.title;
+ document.getElementById("missionDesc").textContent=s.desc;
+ const sl=document.getElementById("sliders"); sl.innerHTML="";
+ Object.keys(organisms).forEach(k=>{
+   sl.innerHTML+=`<div class="sliderbox"><label><span>${organisms[k].emoji} ${organisms[k].name}</span><b id="v_${k}">${s.initial[k]}</b></label><input id="s_${k}" type="range" min="0" max="80" value="${s.initial[k]}" oninput="document.getElementById('v_${k}').textContent=this.value"></div>`;
+ });
+ renderBlocks();renderChart(); updateActors(s.initial,"idle"); renderSimStatus(s.initial,s.initial); document.getElementById("feedback").textContent="Atur populasi lalu jalankan simulasi.";
+ document.getElementById("blockFeedback").textContent="Susun balok setelah melihat hasil eksperimen.";
+ document.getElementById("observation").value="";
+ show("mission");
+}
+function getValues(){let o={};Object.keys(organisms).forEach(k=>o[k]=+document.getElementById("s_"+k).value);return o}
+function clamp(n){return Math.max(0,Math.min(80,Math.round(n)))}
+function simulate(b){
+ let a={...b};
+ if(state.mission===0){
+   const u=b.ular; a.tikus=clamp(b.tikus+(10-u)*0.45); a.katak=clamp(b.katak+(10-u)*0.18); a.padi=clamp(b.padi-(a.tikus-b.tikus)*0.55);
+ } else if(state.mission===1){
+   const k=b.katak; a.belalang=clamp(b.belalang+(12-k)*0.7); a.padi=clamp(b.padi-(a.belalang-b.belalang)*0.45); a.ular=clamp(b.ular-(12-k)*0.18);
+ } else {
+   const p=b.padi; const factor=(60-p)/10; a.tikus=clamp(b.tikus-factor*3); a.belalang=clamp(b.belalang-factor*3.5); a.katak=clamp(b.katak-factor*1.5); a.ular=clamp(b.ular-factor*1.1);
+ }
+ return a;
+}
+function runSim(){
+ state.currentBefore=getValues();state.currentAfter=simulate(state.currentBefore);state.ran=true;state.blocksOk=false;state.chosen=[];
+ renderChart();renderBlocks(); renderSimStatus(state.currentBefore,state.currentAfter); animateSimulation(state.currentBefore,state.currentAfter,state.mission);
+ document.getElementById("feedback").className="note success";
+ const a=state.currentAfter,b=state.currentBefore;
+ if(state.mission===0) document.getElementById("feedback").textContent=`Hasil simulasi: ular ${b.ular} → ${a.ular}, tikus ${b.tikus} → ${a.tikus}, padi ${b.padi} → ${a.padi}. Perhatikan hubungan predator dan mangsa.`;
+ if(state.mission===1) document.getElementById("feedback").textContent=`Hasil simulasi: katak ${b.katak} → ${a.katak}, belalang ${b.belalang} → ${a.belalang}, padi ${b.padi} → ${a.padi}. Perhatikan apa yang terjadi ketika pemakan belalang berkurang.`;
+ if(state.mission===2) document.getElementById("feedback").textContent=`Hasil simulasi: padi ${b.padi} → ${a.padi}. Tikus, belalang, katak, dan ular ikut berubah karena sumber makanan berkurang.`;
+}
+function renderChart(){
+ const wrap=document.getElementById("chartWrap");
+ if(!state.currentAfter){wrap.innerHTML="<div class='note'>Grafik akan muncul setelah EcoSim dijalankan.</div>";return}
+ const b=state.currentBefore,a=state.currentAfter;const keys=Object.keys(organisms),w=600,h=250,p=45,max=80;
+ let bars="",labels="";
+ keys.forEach((k,i)=>{const x=p+i*105;const hb=(b[k]/max)*150,ha=(a[k]/max)*150;bars+=`<rect x="${x}" y="${190-hb}" width="28" height="${hb}" rx="5" fill="#4c8dff"/><rect x="${x+34}" y="${190-ha}" width="28" height="${ha}" rx="5" fill="#55b77a"/><text x="${x+30}" y="215" text-anchor="middle" font-size="12">${organisms[k].emoji}</text><text x="${x+14}" y="${185-hb}" text-anchor="middle" font-size="10">${b[k]}</text><text x="${x+48}" y="${185-ha}" text-anchor="middle" font-size="10">${a[k]}</text>`});
+ wrap.innerHTML=`<svg class="chart" viewBox="0 0 ${w} ${h}" aria-label="Grafik populasi"><line x1="${p}" y1="190" x2="570" y2="190" stroke="#9aa8b5"/><text x="560" y="28" text-anchor="end" font-size="12">Biru = sebelum • Hijau = sesudah</text>${bars}</svg>`;
+}
+function renderBlocks(){
+ const s=scenarios[state.mission],bank=document.getElementById("blockBank"),chosen=document.getElementById("chosenBlocks");
+ bank.innerHTML=s.blocks.map((x,i)=>`<button class="block b${(i%4)+1}" onclick="addBlock('${x}')">${x}</button>`).join("");
+ chosen.innerHTML=state.chosen.length?state.chosen.map((x,i)=>`<span class="block b${(i%4)+1}">${i+1}. ${x}</span>`).join(""):"<span class='small'>Belum ada balok.</span>";
+}
+function addBlock(x){if(!state.ran)return;state.chosen.push(x);renderBlocks()}
+function checkBlocks(){
+ if(!state.ran){document.getElementById("blockFeedback").textContent="Jalankan EcoSim terlebih dahulu.";return}
+ const correct=scenarios[state.mission].correct.join("|"),mine=state.chosen.join("|");
+ state.blocksOk=(mine===correct);
+ if(state.blocksOk){missionSuccessSound();}
+ document.getElementById("blockFeedback").className=state.blocksOk?"note success":"note warn";
+ document.getElementById("blockFeedback").textContent=state.blocksOk?"Urutan sebab-akibatmu sesuai dengan hasil simulasi. Balok EcoSim berjalan!":"Coba amati kembali grafik dan perubahan populasi, lalu susun ulang baloknya.";
+}
+function saveExperiment(){
+ if(!state.ran){document.getElementById("feedback").textContent="Jalankan EcoSim sebelum menyimpan hasil.";return}
+ state.missions[state.mission]={before:{...state.currentBefore},after:{...state.currentAfter},observation:document.getElementById("observation").value,blocks:[...state.chosen]};
+ document.getElementById("feedback").className="note success";document.getElementById("feedback").textContent="Hasil eksperimen tersimpan untuk LKPD.";
+}
+function resetMission(){openMission(state.mission)}
+function completeMission(){
+ if(!state.ran){alert("Jalankan EcoSim terlebih dahulu.");return}
+ saveExperiment();
+ if(!state.blocksOk){document.getElementById("blockFeedback").textContent="Susun dan jalankan balok sampai urutannya tepat sebelum menyelesaikan misi.";return}
+ if(state.mission<2){openMission(state.mission+1)}else{renderLKPD();show("lkpd")}
+}
+function renderLKPD(){
+ document.getElementById("lkGroup").value=state.group;document.getElementById("lkMembers").value=state.members;
+ document.getElementById("printGroup").textContent=state.group;document.getElementById("printMembers").textContent=state.members;
+ const wrap=document.getElementById("lkpdMissions");wrap.innerHTML="";
+ state.missions.forEach((m,i)=>{
+  const s=scenarios[i], b=m.before||s.initial,a=m.after||s.initial;
+  const rows=Object.keys(organisms).map(k=>`<tr><td>${organisms[k].emoji} ${organisms[k].name}</td><td>${b[k]}</td><td>${a[k]}</td><td>${a[k]-b[k]>=0?"+":""}${a[k]-b[k]}</td></tr>`).join("");
+  const q=i===0?["Apa yang terjadi pada populasi tikus ketika populasi ular dikurangi?","Mengapa perubahan populasi ular dapat memengaruhi padi?","Apa hubungan ular, tikus, dan padi dalam rantai makanan?"]:i===1?["Apa yang terjadi pada populasi belalang ketika katak dikurangi?","Mengapa perubahan jumlah belalang dapat memengaruhi padi?","Bagaimana hubungan katak, belalang, dan padi?"]:["Apa yang terjadi pada hewan ketika populasi padi berkurang?","Mengapa produsen penting bagi konsumen?","Apa yang dapat kita pelajari tentang keseimbangan ekosistem dari simulasi ini?"];
+  const qs=q.map((x,j)=>`<div style="margin:12px 0"><b>${j+1}. ${x}</b><textarea class="answer lk-answer" data-key="m${i}q${j}" placeholder="Tuliskan jawaban kelompok..."></textarea></div>`).join("");
+  wrap.innerHTML+=`<div class="card"><h2>Pengamatan Misi ${i+1}</h2><p>${s.desc}</p><table><thead><tr><th>Organisme</th><th>Sebelum</th><th>Sesudah</th><th>Perubahan</th></tr></thead><tbody>${rows}</tbody></table><p><b>Hal yang kami amati:</b></p><textarea class="answer obs" data-key="obs${i}" placeholder="Tuliskan pengamatan kelompok...">${m.observation||""}</textarea><h3>Analisis Misi ${i+1}</h3>${qs}</div>`;
+ });
+ document.getElementById("compareTable").innerHTML=`<table><thead><tr><th>Misi</th><th>Organisme yang diubah</th><th>Kondisi sebelum</th><th>Kondisi sesudah</th><th>Dampak yang diamati</th></tr></thead><tbody>`+state.missions.map((m,i)=>{const t=scenarios[i].target,b=m.before||scenarios[i].initial,a=m.after||b;return `<tr><td>${i+1}</td><td>${organisms[t].emoji} ${organisms[t].name}</td><td>${b[t]}</td><td>${a[t]}</td><td>${describeImpact(i,b,a)}</td></tr>`}).join("")+`</tbody></table>`;
+}
+function describeImpact(i,b,a){
+ if(i===0)return `Tikus ${b.tikus} → ${a.tikus}; padi ${b.padi} → ${a.padi}.`;
+ if(i===1)return `Belalang ${b.belalang} → ${a.belalang}; padi ${b.padi} → ${a.padi}.`;
+ return `Tikus ${b.tikus} → ${a.tikus}; belalang ${b.belalang} → ${a.belalang}; konsumen lain ikut berubah.`;
+}
+function saveLKPD(){
+ state.group=document.getElementById("lkGroup").value;state.members=document.getElementById("lkMembers").value;
+ document.querySelectorAll(".obs").forEach((el,i)=>{if(state.missions[i])state.missions[i].observation=el.value});
+ state.conclusion=document.getElementById("conclusion").value;
+ document.getElementById("printGroup").textContent=state.group;document.getElementById("printMembers").textContent=state.members;
+ document.getElementById("saveStatus").textContent=" ✓ Jawaban tersimpan selama sesi ini.";
+}
+</script>
+
+<script>
+(function(){
+  const m=document.getElementById('ecoMusic'), s=document.getElementById('ecoSfx');
+  window.ecoLocalAudio={
+    musicOn:true,sfxOn:true,
+    start:function(){ if(this.musicOn){m.volume=.35; m.play().catch(()=>{});} },
+    stop:function(){m.pause();m.currentTime=0;},
+    sfx:function(){if(this.sfxOn){s.currentTime=0;s.volume=.5;s.play().catch(()=>{});}}
+  };
+  document.addEventListener('click',function(){window.ecoLocalAudio.start();},{once:true});
+})();
+</script>
+</body>
+</html>
